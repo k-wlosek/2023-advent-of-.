@@ -1,3 +1,5 @@
+# tooling: FTK Imager
+
 # C2 server
 Look in
 DO_NOT_OPEN\secretchat.txt
