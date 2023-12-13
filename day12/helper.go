@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func check(e error) {
@@ -76,7 +78,20 @@ func concatIntArrNTimes(arr []int, n int) []int {
 	return res
 }
 
+var cache = make(map[string]map[string]int)
+var cacheMutex sync.Mutex
+
 func countFills(line string, numbers []int) int {
+	cacheKey := fmt.Sprintf("%s-%v", line, numbers)
+
+	// Check if result is cached
+	cacheMutex.Lock()
+	if cachedResult, exists := cache[cacheKey]; exists {
+		cacheMutex.Unlock()
+		return cachedResult["result"]
+	}
+	cacheMutex.Unlock()
+
 	// Base case: if no more numbers to check
 	if len(numbers) == 0 {
 		// If '#' is present in the line, no valid substitution
@@ -93,7 +108,14 @@ func countFills(line string, numbers []int) int {
 	// Recursive cases based on the current character in the line
 	if line[0] == '.' {
 		// If the current character is '.', move to the next character
-		return countFills(line[1:], numbers)
+		result := countFills(line[1:], numbers)
+
+		// Cache the result
+		cacheMutex.Lock()
+		cache[cacheKey] = map[string]int{"result": result}
+		cacheMutex.Unlock()
+
+		return result
 	} else if line[0] == '#' {
 		// If the current character is '#'
 		size := numbers[0]
@@ -112,19 +134,40 @@ func countFills(line string, numbers []int) int {
 			if len(line) == size {
 				// If the line is exhausted after this group
 				if len(numbers) == 1 {
-					return 1 // Valid substitution found
+					result := 1 // Valid substitution found
+
+					// Cache the result
+					cacheMutex.Lock()
+					cache[cacheKey] = map[string]int{"result": result}
+					cacheMutex.Unlock()
+
+					return result
 				}
 				return 0 // Continue with the next group
 			}
 
 			// If there are more characters after the current group
 			if line[size] != '#' {
-				return countFills("."+line[size+1:], numbers[1:]) // Move to the next group
+				result := countFills("."+line[size+1:], numbers[1:]) // Move to the next group
+
+				// Cache the result
+				cacheMutex.Lock()
+				cache[cacheKey] = map[string]int{"result": result}
+				cacheMutex.Unlock()
+
+				return result
 			}
 		}
 		return 0 // Invalid substitution, move to the next character
 	} else {
 		// If the current character is '?', try both possibilities
-		return countFills("."+line[1:], numbers) + countFills("#"+line[1:], numbers)
+		result := countFills("."+line[1:], numbers) + countFills("#"+line[1:], numbers)
+
+		// Cache the result
+		cacheMutex.Lock()
+		cache[cacheKey] = map[string]int{"result": result}
+		cacheMutex.Unlock()
+
+		return result
 	}
 }
